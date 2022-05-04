@@ -1,4 +1,4 @@
-# Wolf3D Map to Obj
+# Wolf3D Map to OBJ File
 
 **This project is a work-in-progress.**
 
@@ -8,18 +8,14 @@ A script to export Wolfenstein 3D maps to OBJ object files.
 
 ## Getting Started
 
-### Prerequisites
+### Requirements
 
-You need Python 3.6 or higher to run this.
+Python 3.6 or later, plus all [requirements.txt](requirements.txt) dependencies.
 
-### Installing
-
-Clone or download this repository.
+To install dependencies, run:
 
     pip install -r requirements.txt
 
-## TODO
-
-Pushwalls are not exported at all yet.
-
 ## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

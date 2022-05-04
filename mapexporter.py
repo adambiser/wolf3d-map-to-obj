@@ -133,6 +133,15 @@ def _export_rooms(gamemap, mapindex, vswap, rooms):
 
     textures = []
 
+    def get_wall_texture_id(wallcode, facing):
+        return (wallcode - 1) * 2 + facing
+
+    # noinspection PyShadowingNames
+    def add_face_to_texture_group(group_name, face):
+        if group_name not in texture_groups:
+            texture_groups[group_name] = []
+        texture_groups[group_name].append(face)
+
     # noinspection PyShadowingNames
     def load_texture(texture_type, texture_id):
         texture_name = f"{texture_type}{texture_id:03}"
@@ -152,87 +161,99 @@ def _export_rooms(gamemap, mapindex, vswap, rooms):
             if wallcode in WALL_CODES and \
                     not gamemap.tiles[OBJECT_PLANE][testy][testx] in PUSHWALL_CODES:
                 # noinspection PyShadowingNames
-                texture_id = (wallcode - 1) * 2 + facing
+                texture_id = get_wall_texture_id(wallcode, facing)
                 # noinspection PyShadowingNames
                 name = load_texture("wall", texture_id)
-                add_flat_to_texture_group(name, _get_wall_face(tx1, ty1, tx2, ty2))
+                add_face_to_texture_group(name, _get_wall_face(tx1, ty1, tx2, ty2))
 
     # noinspection PyShadowingNames
-    def add_flat_to_texture_group(group_name, flat):
-        if group_name not in texture_groups:
-            texture_groups[group_name] = []
-        texture_groups[group_name].append(flat)
+    def write_faces(texture_name, faces):
+        obj.add_use_material(texture_name)
+        for face in faces:
+            obj.add_face(*face)
 
-    # noinspection PyShadowingNames
-    def get_group_texture_count(group_name):
-        return len(texture_groups[group_name]) if group_name in texture_groups else 0
-
+    door_faces = []  # global to the map
+    pushwall_faces = [] # global to the map
     for floor_code, tiles in sorted(rooms.items()):
-        obj.add_object_name(f"room{floor_code}")
         texture_groups = {}
-        door_flat_index = []
         for floor_tile in tiles:
             x, y = floor_tile
             code = gamemap.tiles[WALL_PLANE][y][x]
             # Add flats.
             if EXPORT_FLOORS:
-                add_flat_to_texture_group("floor", _get_flat_face(x, y, x + 1, y + 1, 0))  # Floor
+                add_face_to_texture_group("floor", _get_flat_face(x, y, x + 1, y + 1, 0))  # Floor
             if EXPORT_CEILINGS:
-                add_flat_to_texture_group("ceiling", _get_flat_face(x + 1, y + 1, x, y, 1))  # Ceiling
+                add_face_to_texture_group("ceiling", _get_flat_face(x + 1, y + 1, x, y, 1))  # Ceiling
             # Special handling for doors.
             if code in DOOR_EW_CODES:
                 door_index = DOOR_EW_CODES.index(code)
                 texture_id = DOOR_EW_PICS[door_index]
                 name = load_texture("door", texture_id)
-                door_flat_index.append(get_group_texture_count(name))
-                add_flat_to_texture_group(name, _get_wall_face(x + 0.5, y, x + 0.5, y + 1))  # East
-                add_flat_to_texture_group(name, _get_wall_face(x + 0.5, y + 1, x + 0.5, y, True))  # West
+                door_faces.append((name, (
+                    _get_wall_face(x + 0.5, y, x + 0.5, y + 1),  # East, middle
+                    _get_wall_face(x + 0.5, y + 1, x + 0.5, y, True)  # West, middle
+                )))
                 texture_id = DOOR_EW_SIDES[door_index]
                 name = load_texture("wall", texture_id)
-                add_flat_to_texture_group(name, _get_wall_face(x, y, x + 1, y))  # South
-                add_flat_to_texture_group(name, _get_wall_face(x + 1, y + 1, x, y + 1))  # North
+                add_face_to_texture_group(name, _get_wall_face(x, y, x + 1, y))  # South, inwards
+                add_face_to_texture_group(name, _get_wall_face(x + 1, y + 1, x, y + 1))  # North, inwards
                 continue
             elif code in DOOR_NS_CODES:
                 door_index = DOOR_NS_CODES.index(code)
                 texture_id = DOOR_NS_PICS[door_index]
                 name = load_texture("door", texture_id)
-                door_flat_index.append(get_group_texture_count(name))
-                add_flat_to_texture_group(name, _get_wall_face(x, y + 0.5, x + 1, y + 0.5))  # South
-                add_flat_to_texture_group(name, _get_wall_face(x + 1, y + 0.5, x, y + 0.5, True))  # North
+                door_faces.append((name, (
+                    _get_wall_face(x, y + 0.5, x + 1, y + 0.5),  # South, middle
+                    _get_wall_face(x + 1, y + 0.5, x, y + 0.5, True)  # North, middle
+                )))
                 texture_id = DOOR_NS_SIDES[door_index]
                 name = load_texture("wall", texture_id)
-                add_flat_to_texture_group(name, _get_wall_face(x, y + 1, x, y))  # West
-                add_flat_to_texture_group(name, _get_wall_face(x + 1, y, x + 1, y + 1))  # East
+                add_face_to_texture_group(name, _get_wall_face(x, y + 1, x, y))  # West, inwards
+                add_face_to_texture_group(name, _get_wall_face(x + 1, y, x + 1, y + 1))  # East, inwards
                 continue
-            # TODO Pushwalls.
+            elif code in WALL_CODES and gamemap.tiles[OBJECT_PLANE][y][x] in PUSHWALL_CODES:
+                # These faces face *outwards* from the tile.
+                texture_name_ew = load_texture("wall", get_wall_texture_id(code, _FACING_EW))
+                texture_name_ns = load_texture("wall", get_wall_texture_id(code, _FACING_NS))
+                # ns_texture_id = get_wall_texture_id(code, _FACING_NS)
+                pushwall_faces.append((
+                        (texture_name_ns, (
+                            _get_wall_face(x, y + 1, x + 1, y + 1),  # South, outwards
+                            _get_wall_face(x + 1, y, x, y)  # North, outwards
+                        )),
+                        (texture_name_ew, (
+                            _get_wall_face(x, y, x, y + 1),  # West, outwards
+                            _get_wall_face(x + 1, y + 1, x + 1, y)  # East, outwards
+                        )),
+                ))
+                pass
             # Check for surrounding walls.
-            add_if_wall(x - 1, y, _FACING_EW, x, y + 1, x, y)  # West
-            add_if_wall(x + 1, y, _FACING_EW, x + 1, y, x + 1, y + 1)  # East
-            add_if_wall(x, y - 1, _FACING_NS, x, y, x + 1, y)  # South
-            add_if_wall(x, y + 1, _FACING_NS, x + 1, y + 1, x, y + 1)  # North
-        current_group = None
-        for texture_name, flats in sorted(texture_groups.items()):
-            if texture_name.startswith("door"):
-                door_count = 0
-                for index in range(len(flats)):
-                    if index in door_flat_index:
-                        door_count += 1
-                        current_group = f"door{door_count}"
-                        obj.add_group(current_group)
-                        obj.add_use_material(texture_name)
-                    obj.add_face(*flats[index])
-            else:
-                # group all walls together
-                if texture_name.startswith("wall"):
-                    if current_group != "walls":
-                        current_group = "walls"
-                        obj.add_group(current_group)
-                    obj.add_use_material(texture_name)
-                else:
-                    current_group = texture_name
-                    obj.add_use_material(texture_name)
-                for flat in flats:
-                    obj.add_face(*flat)
+            add_if_wall(x - 1, y, _FACING_EW, x, y + 1, x, y)  # West, inwards
+            add_if_wall(x + 1, y, _FACING_EW, x + 1, y, x + 1, y + 1)  # East, inwards
+            add_if_wall(x, y - 1, _FACING_NS, x, y, x + 1, y)  # South, inwards
+            add_if_wall(x, y + 1, _FACING_NS, x + 1, y + 1, x, y + 1)  # North, inwards
+
+        # Output this room.
+        obj.add_object_name(f"Room_{floor_code}")
+        obj.add_group(f"Room_{floor_code}_Walls")
+        for texture_name, faces in sorted([(tn, f) for tn, f in texture_groups.items() if tn.startswith("wall")]):
+            write_faces(texture_name, faces)
+        # Add flats
+        if EXPORT_FLOORS:
+            obj.add_group(f"Room_{floor_code}_Floor")
+            write_faces("floor", texture_groups["floor"])
+        if EXPORT_CEILINGS:
+            obj.add_group(f"Room_{floor_code}_Ceiling")
+            write_faces("ceiling", texture_groups["ceiling"])
+    # Add door objects
+    for (index, (texture_name, faces)) in enumerate(door_faces):
+        obj.add_object_name(f"Door_{index + 1}")
+        write_faces(texture_name, faces)
+    # Add pushwalls
+    for (index, pushwall_info) in enumerate(pushwall_faces):
+        obj.add_object_name(f"Pushwall_{index + 1}")
+        for texture_name, faces in pushwall_info:
+            write_faces(texture_name, faces)
     mtl.save(os.path.join(EXPORT_PATH, f"map{mapindex:02}.mtl"))
     obj.add_mtl_file(f"map{mapindex:02}.mtl")
     obj.save(os.path.join(EXPORT_PATH, f"map{mapindex:02}.obj"))

@@ -61,7 +61,7 @@ def _get_flat_face(x1, z1, x2, z2, y):
          (x2, y, z2),
          (x1, y, z2))
     t = ((0, 0), (1, 0), (1, 1), (0, 1))
-    ny = x2 - x1  # could also use z2 - z1
+    ny = x2 - x1
     n = (_normalize(0, ny, 0),) * 4
     return v, t, n
 

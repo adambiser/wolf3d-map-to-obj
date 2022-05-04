@@ -10,7 +10,7 @@ logger = logging.getLogger("mapexporter")
 
 # MAP SETTINGS
 WALL_CODES = tuple(range(1, 50))
-FLOOR_CODES = tuple(range(108, 144))
+FLOOR_CODES = tuple(range(107, 144))
 FLOOR_MARKERS = (106, 107)  # Things like the ambush and secret elevator codes.
 DOOR_EW_CODES = (90, 92, 94, 100)
 DOOR_NS_CODES = (91, 93, 95, 101)

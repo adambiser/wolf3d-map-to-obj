@@ -4,6 +4,8 @@
 
 A script to export Wolfenstein 3D maps to OBJ object files.
 
+![The first level of Wolfenstein 3D](map00.png "Map 01")
+
 ## Getting Started
 
 ### Prerequisites

@@ -35,7 +35,7 @@ EXPORT_PATH = "export"
 
 
 def _normalize(x, y, z):
-    multiplier = 1 / (sqrt(x * x + y * y + z * z))
+    multiplier = 1 / sqrt(x * x + y * y + z * z)
     return x * multiplier, y * multiplier, z * multiplier
 
 
@@ -53,7 +53,7 @@ def _get_wall_face(x1, z1, x2, z2, reverse_texture=False):
 
 
 def _get_flat_face(x1, z1, x2, z2, y):
-    """floor = x, y -> x + 1, y + 1
+    """floor = x, y + 1 -> x + 1, y
     ceiling = x + 1, y + 1 -> x, y
     """
     v = ((x1, y, z1),
@@ -181,7 +181,7 @@ def _export_rooms(gamemap, mapindex, vswap, rooms):
             code = gamemap.tiles[WALL_PLANE][y][x]
             # Add flats.
             if EXPORT_FLOORS:
-                add_face_to_texture_group("floor", _get_flat_face(x, y, x + 1, y + 1, 0))  # Floor
+                add_face_to_texture_group("floor", _get_flat_face(x, y + 1, x + 1, y, 0))  # Floor
             if EXPORT_CEILINGS:
                 add_face_to_texture_group("ceiling", _get_flat_face(x + 1, y + 1, x, y, 1))  # Ceiling
             # Special handling for doors.
@@ -235,23 +235,23 @@ def _export_rooms(gamemap, mapindex, vswap, rooms):
 
         # Output this room.
         obj.add_object_name(f"Room_{floor_code}")
-        obj.add_group(f"Room_{floor_code}_Walls")
+        obj.add_group(f"Room_{floor_code}")
         for texture_name, faces in sorted([(tn, f) for tn, f in texture_groups.items() if tn.startswith("wall")]):
             write_faces(texture_name, faces)
         # Add flats
         if EXPORT_FLOORS:
-            obj.add_group(f"Room_{floor_code}_Floor")
             write_faces("floor", texture_groups["floor"])
         if EXPORT_CEILINGS:
-            obj.add_group(f"Room_{floor_code}_Ceiling")
             write_faces("ceiling", texture_groups["ceiling"])
     # Add door objects
     for (index, (texture_name, faces)) in enumerate(door_faces):
         obj.add_object_name(f"Door_{index + 1}")
+        obj.add_group(f"Door_{index + 1}")
         write_faces(texture_name, faces)
     # Add pushwalls
     for (index, pushwall_info) in enumerate(pushwall_faces):
         obj.add_object_name(f"Pushwall_{index + 1}")
+        obj.add_group(f"Pushwall_{index + 1}")
         for texture_name, faces in pushwall_info:
             write_faces(texture_name, faces)
     mtl.save(os.path.join(EXPORT_PATH, f"map{mapindex:02}.mtl"))
